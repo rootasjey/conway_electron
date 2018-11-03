@@ -1,0 +1,12 @@
+{
+    "extends": "eslint:recommended",
+    "parser": "babel-eslint",
+    "globals": {
+        "window": true,
+        "Phaser": true,
+        "process": true,
+        "__dirname": true,
+        "setImmediate": true,
+        "module": true
+    }
+}
