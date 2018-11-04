@@ -94,5 +94,5 @@ function canBeKilled({ x, y, cells, rows, columns }) {
     }
   }
 
-  return aliveNeighbours !== 2 || aliveNeighbours !== 3
+  return aliveNeighbours !== 2 && aliveNeighbours !== 3
 }

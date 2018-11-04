@@ -47,13 +47,10 @@ function createMainWindow() {
 }
 
 ipcMain.on('tick', (event, arg) => {
-  const cellsToBorn = born(arg)
-  const cellsToKill = kill(arg)
-
   event.sender.send('tick-reply', {
-    add: cellsToBorn,
-    remove: cellsToKill,
-    step: arg.step + 1
+    add     : born(arg),
+    remove  : kill(arg),
+    step    : arg.step + 1
   })
 })
 
