@@ -1,5 +1,4 @@
 /**
- * Resurect :
  * for each cell alive
  * 1. get 8 neightbours
  * 2. for each neightbour
@@ -61,38 +60,41 @@ function checkAliveNeighbours({ x, y, cells, rows, columns }) {
 }
 
 export function kill(config = {}) {
-  const { cells = [], rows = 0, columns = 0 } = config
-  const cellsToKill = {}
+  const { cells = [], rows = 0, columns = 0 } = config;
+  const cellsToKill = {};
 
   for (const [, cell] of Object.entries(cells)) {
-    const { x, y } = cell
-    const mustBeKilled = canBeKilled({ x, y, cells, rows, columns })
+    const { x, y } = cell;
+    const mustBeKilled = canBeKilled({ x, y, cells, rows, columns });
 
-    if (mustBeKilled) { cellsToKill[`${x},${y}`] = cell }
+    if (mustBeKilled) { cellsToKill[`${x},${y}`] = cell; }
   }
 
-  return cellsToKill
+  return cellsToKill;
 }
 
 function canBeKilled({ x, y, cells, rows, columns }) {
-  let aliveNeighbours = 0
+  let aliveNeighbours = 0;
 
   for (let x1 = x - 1; x1 <= x + 1; x1++) {
     for (let y1 = y - 1; y1 <= y + 1; y1++) {
       // out of bounds
-      let x2 = x1 < 0 ? columns - x1 : x1
-      let y2 = y1 < 0 ? rows - y1 : y1
+      let x2 = x1 < 0 ? columns - x1 : x1;
+      let y2 = y1 < 0 ? rows - y1 : y1;
 
-      x2 = x1 % columns
-      y2 = y1 % rows
+      x2 = x1 % columns;
+      y2 = y1 % rows;
 
-      if (x2 === x && y2 === y) continue
+      if (x2 === x && y2 === y) { continue; }
 
       if (cells[`${x2},${y2}`]) {
-        aliveNeighbours++
+        aliveNeighbours++;
       }
+
+      // Early check
+      if (aliveNeighbours > 3) return true;
     }
   }
 
-  return aliveNeighbours !== 2 && aliveNeighbours !== 3
+  return aliveNeighbours !== 2 && aliveNeighbours !== 3;
 }

@@ -8,3 +8,6 @@ const config = {
 };
 
 window.game = new Phaser.Game(config);
+
+document.body.style.margin = '0px';
+document.body.style.padding = '0px';
