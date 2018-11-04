@@ -18,7 +18,9 @@ export default class MainScene extends Phaser.Scene {
         rows: 40,
       },
     }
+  }
 
+  init() {
     this.state = {
       cells: {},
       paused: true,
@@ -31,70 +33,30 @@ export default class MainScene extends Phaser.Scene {
       buttons: {
         pause: {},
         play: {},
+        restart: {},
       },
       cells: {},
       counter: {},
     }
 
-  }
-
-  preload() {
+    return this
   }
 
   create() {
     const { columns, rows } = this.config.dimensions
 
-    this.drawGrid({ columns: columns, rows: rows});
-    this.createInitialState();
-    this.createCounter()
-    this.createUIControls()
-    this.listenEvents()
-  }
-
-  /**
-   * Create grid
-   */
-  drawGrid({ columns = 80, rows = 40}) {
-    const { grid: color } = this.config.colors
-
-    const rowSize = window.innerHeight / rows;
-    const columnSize = window.innerWidth / columns;
-
-    const columnHeight = window.innerHeight * 2;
-    const rowWidth = window.innerWidth * 2;
-
-    this.config.cellSize = { h: rowSize, w: columnSize };
-
-    for (let index = 0; index < columns; index++) {
-      const columnOffset = columnSize * index;
-      this.add.line(0, 0, columnOffset, 0, columnOffset, columnHeight, color);
-    }
-
-    for (let index = 0; index < rows; index++) {
-      const rowOffset = rowSize * index;
-      this.add.line(0, 0, 0, rowOffset, rowWidth, rowOffset, color);
-    }
-  }
-
-  start() {
-    this.timer = window.setInterval(() => { this.tick() }, 1000)
-    this.state.paused = false
-  }
-
-  pause() {
-    window.clearInterval(this.timer)
-    this.state.paused = true
+    this.drawGrid({ columns: columns, rows: rows})
+      .createInitialState()
+      .createCounter()
+      .createUIControls()
+      .listenEvents()
   }
 
   createUIControls() {
     const { innerWidth: x } = window
     const y = 40
 
-    this.ui.buttons.play = this.add.triangle(
-      x - 45, y, 0, 0, 0, 45, 45, 22.5, 0xe84118)
-      .setInteractive()
-      .setAlpha(.5)
-
+    // Pause button
     const r1 = this.add.rectangle(0, 0, 10, 50, 0x6666ff)
     const r2 = this.add.rectangle(20, 0, 10, 50, 0x6666ff)
 
@@ -105,12 +67,47 @@ export default class MainScene extends Phaser.Scene {
       .setAlpha(.5)
       .setVisible(false)
 
-    const { pause } = this.ui.buttons
-    const { play } = this.ui.buttons
+    // Play button
+    this.ui.buttons.play = this.add.triangle(
+      x - 45, y, 0, 0, 0, 45, 45, 22.5, 0xe84118)
+      .setInteractive()
+      .setAlpha(.5)
+
+
+    // Restart button
+    var circle = this.add.circle(0, 10, 20)
+      .setStrokeStyle(10, 0x00a8ff);
+
+    const triangle = this.add.triangle(
+      -17, 5, 0, 0, 0, 30, 30, 8, 0x00a8ff)
+      .setRotation(39)
+
+    this.ui.buttons.restart = this.add
+      .container(
+        x - 45,
+        y + 60,
+        [circle, triangle]
+      )
+      .setSize(50, 60)
+      .setInteractive()
+      .setAlpha(.5)
 
     // Events
     // ------
-    // PAUSE
+    const { pause, play, restart } = this.ui.buttons
+
+    // destroy
+    pause.once('destroy', () => {
+      r1.destroy()
+      r2.destroy()
+    })
+
+    restart.once('destroy', () => {
+      circle.destroy()
+      triangle.destroy()
+    })
+
+    // Pause
     pause.on('pointerdown', () => {
       const { paused } = this.state
 
@@ -129,7 +126,7 @@ export default class MainScene extends Phaser.Scene {
       pause.setAlpha(.5)
     })
 
-    // PLAY
+    // Play
     play.on('pointerdown', () => {
       const { paused } = this.state
 
@@ -148,6 +145,21 @@ export default class MainScene extends Phaser.Scene {
     play.on('pointerout', () => {
       play.setAlpha(.5)
     })
+
+    // Restart
+    restart.on('pointerdown', () => {
+      this.restart()
+    })
+
+    restart.on('pointerover', () => {
+      restart.setAlpha(1)
+    })
+
+    restart.on('pointerout', () => {
+      restart.setAlpha(.5)
+    })
+
+    return this
   }
 
   createCounter() {
@@ -168,11 +180,10 @@ export default class MainScene extends Phaser.Scene {
     counter.on('pointerout', () => {
       counter.setAlpha(.6)
     })
+
+    return this
   }
 
-  /**
-   * createInitialState
-   */
   createInitialState() {
     const seed = [
       {
@@ -223,6 +234,53 @@ export default class MainScene extends Phaser.Scene {
     ];
 
     this.initCells(seed);
+
+    return this
+  }
+
+  /**
+   * Create grid
+   */
+  drawGrid({ columns = 80, rows = 40 }) {
+    const { grid: color } = this.config.colors
+
+    const rowSize = window.innerHeight / rows;
+    const columnSize = window.innerWidth / columns;
+
+    const columnHeight = window.innerHeight * 2;
+    const rowWidth = window.innerWidth * 2;
+
+    this.config.cellSize = { h: rowSize, w: columnSize };
+
+    for (let index = 0; index < columns; index++) {
+      const columnOffset = columnSize * index;
+      this.add.line(0, 0, columnOffset, 0, columnOffset, columnHeight, color);
+    }
+
+    for (let index = 0; index < rows; index++) {
+      const rowOffset = rowSize * index;
+      this.add.line(0, 0, 0, rowOffset, rowWidth, rowOffset, color);
+    }
+
+    return this;
+  }
+
+  freeMemory() {
+    for (const [, button] of Object.entries(this.ui.buttons)) {
+      button.destroy()
+    }
+
+    for (const [, cell] of Object.entries(this.ui.cells)) {
+      cell.destroy()
+    }
+
+    this.ui.counter.destroy()
+
+    window.clearInterval(this.timer)
+
+    ipcRenderer.removeAllListeners('tick-reply')
+
+    return this
   }
 
   /**
@@ -251,6 +309,15 @@ export default class MainScene extends Phaser.Scene {
     ipcRenderer.on('tick-reply', (event, data) => {
       this.renderState(data)
     })
+
+    return this
+  }
+
+  pause() {
+    window.clearInterval(this.timer)
+    this.state.paused = true
+
+    return this
   }
 
   renderState(state = {}) {
@@ -283,12 +350,32 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
+  restart() {
+    this.freeMemory()
+      .init()
+      .create()
+  }
+
+  start() {
+    this.timer = window.setInterval(() => { this.tick() }, 1000)
+    this.state.paused = false
+
+    return this;
+  }
+
+  stopTick() {
+    const { pause } = this.ui.buttons
+
+    pause.setVisible(false)
+    window.clearInterval(this.timer)
+  }
+
   tick() {
     const { cells, step } = this.state
     const { columns, rows } = this.config.dimensions
 
     if (Object.keys(cells).length < 1) {
-      window.clearInterval(this.timer)
+      this.stopTick()
     }
 
     ipcRenderer.send('tick', { cells, columns, rows, step })
@@ -296,6 +383,13 @@ export default class MainScene extends Phaser.Scene {
 
 
   updateCounter(text) {
+    // Used to update interactive zone
+    if (this.ui.counter.text.length !== `${text}`.length) {
+      this.ui.counter.destroy()
+      this.createCounter()
+      return
+    }
+
     this.ui.counter.text = text
   }
 }
