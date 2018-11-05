@@ -49,10 +49,18 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
+  cleanBoard() {
+    for (const [, cell] of Object.entries(this.ui.cells)) {
+      cell.destroy();
+    }
+
+    return this;
+  }
+
   create() {
     const { columns, rows } = this.config.dimensions;
 
-    this.createGrid({ columns: columns, rows: rows, debug: true })
+    this.createGrid({ columns, rows, debug: true })
       .createInitialState()
       .createCounter()
       .createUIControls()
@@ -382,9 +390,7 @@ export default class MainScene extends Phaser.Scene {
       button.destroy();
     }
 
-    for (const [, cell] of Object.entries(this.ui.cells)) {
-      cell.destroy();
-    }
+    this.cleanBoard();
 
     this.ui.counter.destroy();
     this.ui.pointer.destroy();
@@ -583,25 +589,47 @@ export default class MainScene extends Phaser.Scene {
     ipcRenderer.send('tick', { cells, columns, rows, step });
   }
 
+  createSeedsPanel() {
+    const { innerHeight: h, innerWidth: w } = window;
+
+    const background = this.add
+      .rectangle((w / 2), (h / 2), w, h, 0x0652DD)
+      .setStrokeStyle(5, 0x1B1464);
+
+    const text = this.add
+      .text((w / 2), 10,
+        'seeds', { fontFamily: 'Arial', fontSize: 40, color: '#fff' });
+
+    const seedsBoards = this.add.container(0, 90);
+
+    this.ui.seedsPanel = this.add
+      .container(0, 0, [background, text, seedsBoards])
+      .setVisible(false)
+      .setDepth(3);
+
+    return this.ui.seedsPanel;
+  }
+
   toggleSeedsPanel() {
     const { innerHeight: h, innerWidth: w } = window;
-    const { seedsPanel } = this.ui;
+    let { seedsPanel } = this.ui;
 
     if (!seedsPanel.setVisible) {
-      const background = this.add
-        .rectangle((w / 2), (h / 2), w, h, 0x0652DD)
-        .setStrokeStyle(5, 0x1B1464);
+      // const background = this.add
+      //   .rectangle((w / 2), (h / 2), w, h, 0x0652DD)
+      //   .setStrokeStyle(5, 0x1B1464);
 
-      const text = this.add
-        .text((w / 2), 10,
-          'seeds', { fontFamily: 'Arial', fontSize: 40, color: '#fff' });
+      // const text = this.add
+      //   .text((w / 2), 10,
+      //     'seeds', { fontFamily: 'Arial', fontSize: 40, color: '#fff' });
 
-      const seedsBoards = this.add.container(0, 90);
+      // const seedsBoards = this.add.container(0, 90);
 
-      this.ui.seedsPanel = this.add
-        .container(0, 0, [background, text, seedsBoards])
-        .setVisible(false)
-        .setDepth(3);
+      // this.ui.seedsPanel = this.add
+      //   .container(0, 0, [background, text, seedsBoards])
+      //   .setVisible(false)
+      //   .setDepth(3);
+      seedsPanel = this.createSeedsPanel();
     }
 
     if (this.ui.seedsPanel.visible) {
@@ -616,7 +644,6 @@ export default class MainScene extends Phaser.Scene {
     this.ui.seedsPanel.setVisible(true);
     this.state.ready = false;
 
-    ipcRenderer.send('get-all-states');
     ipcRenderer.on('get-all-states-reply', (event, data) => {
       ipcRenderer.removeAllListeners('get-all-states-reply');
 
@@ -625,7 +652,27 @@ export default class MainScene extends Phaser.Scene {
 
       data.states
         .map((state, i) => {
-          const r = this.add.rectangle((w + 40) * i + w, 100 + 10, w, w, 0xfff);
+          const rect = this.add.rectangle((w + 40) * i + w, 100 + 10, w, w, 0xfff);
+
+          rect.setInteractive();
+
+          rect.on('pointerover', () => {
+            rect.setScale(1.2, 1.2);
+          });
+
+          rect.on('pointerout', () => {
+            rect.setScale(1, 1);
+          });
+
+          rect.on('pointerdown', () => {
+            this
+              .cleanBoard()
+              .initCells(state);
+
+            this.ui.seedsPanel.setVisible(false);
+            seedsBoards.removeAll(true);
+            this.state.ready = true;
+          });
 
           let name = data.names[i].replace('.json', '');
           name = name.length > 10 ? name.substring(0, 10) + '...' : name;
@@ -635,9 +682,11 @@ export default class MainScene extends Phaser.Scene {
               `${name}`,
               { fontFamily: 'Arial', fontSize: 20, color: '#fff' })
 
-          seedsBoards.add(r).add(text);
+          seedsBoards.add(rect).add(text);
         })
     });
+
+    ipcRenderer.send('get-all-states');
   }
 
   updateCounter(text) {
