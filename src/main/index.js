@@ -18,7 +18,7 @@ function createMainWindow() {
   const window = new BrowserWindow({
     width: 1400,
     heigt: 900,
-  })
+  });
 
   if (isDevelopment) {
     window.webContents.openDevTools()
@@ -32,7 +32,7 @@ function createMainWindow() {
       pathname: path.join(__dirname, 'index.html'),
       protocol: 'file',
       slashes: true
-    }))
+    }));
   }
 
   window.on('closed', () => {
@@ -57,32 +57,30 @@ ipcMain.on('tick', (event, arg) => {
   })
 })
 
-ipcMain.on('get-initial-state', (event, arg) => {
+ipcMain.on('get-initial-state', (event) => {
   const pathName = path.join(__dirname, '/seeds/');
 
   fs.readdir(pathName, (err, files) => {
-    if (err) {
-      console.error('It seems that the path doesn\'t exist');
-    }
+    // TODO: handle error
+    // if (err) { }
 
     storage.get(`${pathName}${files[0]}`)
       .then(data => {
         event.sender.send('get-initial-state-reply', data);
       })
-      .catch(err => {
-        console.error(err);
+      .catch(() => {
+        // TODO: handle error
+        // console.error(err);
       });
   });
 });
 
-ipcMain.on('get-all-states', (event, arg) => {
+ipcMain.on('get-all-states', (event) => {
   const pathName = path.join(__dirname, '/seeds/');
 
   fs.readdir(pathName, (err, files) => {
 
-    if (err) {
-      console.error('It seems that the path doesn\'t exist');
-    }
+    // if (err) {} // TODO: handle error
 
     const promArr = [];
 
@@ -90,10 +88,10 @@ ipcMain.on('get-all-states', (event, arg) => {
 
     Promise.all(promArr)
       .then((states) => {
-        event.sender.send('get-all-states-reply', { names: files, states })
+        const seeds = states.map((state, i) => { return { name: files[i], state } })
+        event.sender.send('get-all-states-reply', { seeds });
       })
-      .catch((reason) => {
-        console.error(reason);
+      .catch(() => { // TODO: handle error
       });
   });
 });
@@ -102,7 +100,7 @@ ipcMain.on('get-all-states', (event, arg) => {
 app.on('window-all-closed', () => {
   // on macOS it is common for applications to stay open until the user explicitly quits
   if (process.platform !== 'darwin') {
-    app.quit()
+    app.quit();
   }
 });
 
