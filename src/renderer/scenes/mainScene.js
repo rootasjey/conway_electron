@@ -68,13 +68,57 @@ export default class MainScene extends Phaser.Scene {
       .listenEvents();
   }
 
+  createBoard(config = {}) {
+    const { data, i, seedsPanel, state } = config;
+    const seedsBoards = seedsPanel.last;
+
+    const color = 0xED4C67;
+    const width = 150;
+    const x = (width + 40) * i + width;
+    const y = 110;
+
+    const rect = this.add
+      .rectangle(x, y, width, width, color)
+      .setInteractive();
+
+    rect.on('pointerover', () => {
+      rect.setScale(1.2, 1.2);
+    });
+
+    rect.on('pointerout', () => {
+      rect.setScale(1, 1);
+    });
+
+    rect.on('pointerdown', () => {
+      this
+        .cleanBoard()
+        .initCells(state);
+
+      seedsPanel.setVisible(false);
+      seedsBoards.removeAll(true);
+      this.state.ready = true;
+    });
+
+    let name = data.names[i].replace('.json', '');
+    name = name.length > 10 ? name.substring(0, 10) + '...' : name;
+
+    const textX = (width + 40) * i + (width / 2);
+    const textY = width + 60;
+    const style = { fontFamily: 'Arial', fontSize: 20, color: '#fff' };
+
+    const text = this.add.text(textX, textY, `${name}`, style)
+
+    seedsBoards.add(rect).add(text);
+  }
+
   createCounter() {
     const { step } = this.state;
+    const x = 30;
+    const y = window.innerHeight - 70;
+    const style = { fontFamily: 'Arial', fontSize: 64, color: '#fbc531' };
 
-    this.ui.counter = this.add.text(30, window.innerHeight - 70,
-      `${step}`, {
-        fontFamily: 'Arial', fontSize: 64, color: '#fbc531'
-      })
+    this.ui.counter = this.add
+      .text(x, y, `${step}`, style)
       .setInteractive()
       .setAlpha(.6)
       .setDepth(2);
@@ -271,12 +315,22 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
+  createPointer() {
+    const { h, w } = this.config.cellSize;
+    const { cell: color } = this.config.colors;
+
+    this.ui.pointer = this.add.rectangle(100, 20, w, h, color)
+      .setVisible(false)
+      .setDepth(1);
+
+    return this;
+  }
+
   createRestartButton() {
     const { innerWidth: x } = window;
     const y = 40;
 
-    // Restart button
-    var circle = this.add.circle(0, 10, 20)
+    const circle = this.add.circle(0, 10, 20)
       .setStrokeStyle(10, 0x00a8ff);
 
     const triangle = this.add.triangle(
@@ -320,17 +374,6 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  createPointer() {
-    const { h, w } = this.config.cellSize;
-    const { cell: color } = this.config.colors;
-
-    this.ui.pointer = this.add.rectangle(100, 20, w, h, color)
-      .setVisible(false)
-      .setDepth(1);
-
-    return this;
-  }
-
   createSeedsButton() {
     const { innerWidth: x, innerHeight: y } = window;
     const color = 0xA3CB38;
@@ -338,22 +381,25 @@ export default class MainScene extends Phaser.Scene {
     const w = 70;
     const h = 30;
 
+    const textX = -w;
+    const textY = 20 - h;
+    const style = { fontFamily: 'Arial', fontSize: 20, color: '#009432' };
+
     const r1 = this.add
       .rectangle((w / 2) - (w + 10), 0, w, h, color)
       .setStrokeStyle(4, borderColor);
 
     const text = this.add
-      .text(0 - w, 20 - h,
-        'seeds', { fontFamily: 'Arial', fontSize: 20, color: '#009432' })
+      .text(textX, textY, 'seeds', style)
       .setDepth(1);
 
-    let buttonSeed = this.ui.buttons.seeds;
-
-    buttonSeed = this.add
+    this.ui.buttons.seeds = this.add
       .container((x - 10), y - h, [r1, text])
       .setSize(w * 2, h * 2)
       .setInteractive()
       .setDepth(4);
+
+    const { seeds: buttonSeed } = this.ui.buttons;
 
     // Events
     buttonSeed.once('destroy', () => {
@@ -374,13 +420,41 @@ export default class MainScene extends Phaser.Scene {
     });
   }
 
+  createSeedsPanel() {
+    const { innerHeight: h, innerWidth: w } = window;
+
+    const borderColor = 0x1B1464;
+    const color = 0xb2bec3;
+    const x = w / 2;
+    const y = h / 2;
+
+    const textX = w / 2;
+    const textY = 10;
+    const style = { fontFamily: 'Arial', fontSize: 40, color: '#fff' };
+
+    const background = this.add
+      .rectangle(x, y, w, h, color)
+      .setStrokeStyle(5, borderColor);
+
+    const text = this.add.text(textX, textY, 'seeds', style);
+
+    const seedsBoards = this.add.container(0, 90);
+
+    this.ui.seedsPanel = this.add
+      .container(0, 0, [background, text, seedsBoards])
+      .setVisible(false)
+      .setDepth(3);
+
+    return this.ui.seedsPanel;
+  }
+
   createUIControls() {
     this
-    .createPauseButton()
-    .createPlayButton()
-    .createRestartButton()
-    .createEditionModeButton()
-    .createSeedsButton();
+      .createPauseButton()
+      .createPlayButton()
+      .createRestartButton()
+      .createEditionModeButton()
+      .createSeedsButton();
 
     return this;
   }
@@ -438,8 +512,10 @@ export default class MainScene extends Phaser.Scene {
       this.renderState(data);
     })
 
+    // TODO: Create dedicated container for board
     this.input.on('pointermove', (pointer) => {
-      if (!this.state.paused) { return; }
+      const { paused, ready } = this.state;
+      if (!paused || !ready) { return; }
 
       const { x, y } = pointer;
       const { h, w } = this.config.cellSize;
@@ -484,7 +560,8 @@ export default class MainScene extends Phaser.Scene {
     })
 
     this.input.on('pointerup', () => {
-      if (!this.state.paused) { return; }
+      const { paused, ready } = this.state;
+      if (!paused || !ready) { return; }
 
       const { cells } = this.state
       const { cells: visualCells, editionMode } = this.ui
@@ -589,100 +666,30 @@ export default class MainScene extends Phaser.Scene {
     ipcRenderer.send('tick', { cells, columns, rows, step });
   }
 
-  createSeedsPanel() {
-    const { innerHeight: h, innerWidth: w } = window;
-
-    const background = this.add
-      .rectangle((w / 2), (h / 2), w, h, 0x0652DD)
-      .setStrokeStyle(5, 0x1B1464);
-
-    const text = this.add
-      .text((w / 2), 10,
-        'seeds', { fontFamily: 'Arial', fontSize: 40, color: '#fff' });
-
-    const seedsBoards = this.add.container(0, 90);
-
-    this.ui.seedsPanel = this.add
-      .container(0, 0, [background, text, seedsBoards])
-      .setVisible(false)
-      .setDepth(3);
-
-    return this.ui.seedsPanel;
-  }
-
   toggleSeedsPanel() {
-    const { innerHeight: h, innerWidth: w } = window;
     let { seedsPanel } = this.ui;
 
     if (!seedsPanel.setVisible) {
-      // const background = this.add
-      //   .rectangle((w / 2), (h / 2), w, h, 0x0652DD)
-      //   .setStrokeStyle(5, 0x1B1464);
-
-      // const text = this.add
-      //   .text((w / 2), 10,
-      //     'seeds', { fontFamily: 'Arial', fontSize: 40, color: '#fff' });
-
-      // const seedsBoards = this.add.container(0, 90);
-
-      // this.ui.seedsPanel = this.add
-      //   .container(0, 0, [background, text, seedsBoards])
-      //   .setVisible(false)
-      //   .setDepth(3);
       seedsPanel = this.createSeedsPanel();
     }
 
-    if (this.ui.seedsPanel.visible) {
-      this.ui.seedsPanel.setVisible(false);
+    if (seedsPanel.visible) {
+      seedsPanel.setVisible(false);
       this.state.ready = true;
 
-      const seedsBoards = this.ui.seedsPanel.last;
+      const seedsBoards = seedsPanel.last;
       seedsBoards.removeAll(true);
+
       return;
     }
 
-    this.ui.seedsPanel.setVisible(true);
+    seedsPanel.setVisible(true);
     this.state.ready = false;
 
-    ipcRenderer.on('get-all-states-reply', (event, data) => {
-      ipcRenderer.removeAllListeners('get-all-states-reply');
-
-      const w = 150
-      const seedsBoards = this.ui.seedsPanel.last;
-
+    ipcRenderer.once('get-all-states-reply', (event, data) => {
       data.states
         .map((state, i) => {
-          const rect = this.add.rectangle((w + 40) * i + w, 100 + 10, w, w, 0xfff);
-
-          rect.setInteractive();
-
-          rect.on('pointerover', () => {
-            rect.setScale(1.2, 1.2);
-          });
-
-          rect.on('pointerout', () => {
-            rect.setScale(1, 1);
-          });
-
-          rect.on('pointerdown', () => {
-            this
-              .cleanBoard()
-              .initCells(state);
-
-            this.ui.seedsPanel.setVisible(false);
-            seedsBoards.removeAll(true);
-            this.state.ready = true;
-          });
-
-          let name = data.names[i].replace('.json', '');
-          name = name.length > 10 ? name.substring(0, 10) + '...' : name;
-
-          const text = this.add
-            .text((w + 40) * i + (w / 2), w + 60,
-              `${name}`,
-              { fontFamily: 'Arial', fontSize: 20, color: '#fff' })
-
-          seedsBoards.add(rect).add(text);
+          this.createBoard({ data, i, seedsPanel, state })
         })
     });
 
