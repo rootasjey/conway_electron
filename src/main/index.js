@@ -7,12 +7,12 @@ import * as storage from 'ya-storage'
 import * as fs from 'fs'
 import { Promise } from 'bluebird-lst';
 
-import { born, kill } from './algo'
+import { born, kill } from './algo';
 
-const isDevelopment = process.env.NODE_ENV !== 'production'
+const isDevelopment = process.env.NODE_ENV !== 'production';
 
 // global reference to mainWindow (necessary to prevent window from being garbage collected)
-let mainWindow
+let mainWindow;
 
 function createMainWindow() {
   const window = new BrowserWindow({
