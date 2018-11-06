@@ -1,13 +1,15 @@
-'use strict'
+'use strict';
 
-import { app, BrowserWindow, ipcMain } from 'electron'
-import * as path from 'path'
-import { format as formatUrl } from 'url'
-import * as storage from 'ya-storage'
-import * as fs from 'fs'
-import { Promise } from 'bluebird-lst';
+import * as fs                          from 'fs';
+import * as path                        from 'path';
+import * as storage                     from 'ya-storage';
 
-import { born, kill } from './algorithms';
+import { app, BrowserWindow, ipcMain }  from 'electron';
+import { format as formatUrl }          from 'url';
+import { Promise }                      from 'bluebird-lst';
+
+import { born, kill }                   from './algorithms';
+import { getInitialSate, getAllStates } from './dataFallback';
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
@@ -60,17 +62,19 @@ ipcMain.on('tick', (event, arg) => {
 ipcMain.on('get-initial-state', (event) => {
   const pathName = path.join(__dirname, '/seeds/');
 
+  if (!storage.isPathExists(pathName)) {
+    return getInitialSate();
+  }
+
   fs.readdir(pathName, (err, files) => {
-    // TODO: handle error
-    // if (err) { }
+    if (err) { return getInitialSate(); }
 
     storage.get(`${pathName}${files[0]}`)
       .then(data => {
         event.sender.send('get-initial-state-reply', data);
       })
       .catch(() => {
-        // TODO: handle error
-        // console.error(err);
+        return getInitialSate();
       });
   });
 });
@@ -78,9 +82,13 @@ ipcMain.on('get-initial-state', (event) => {
 ipcMain.on('get-all-states', (event) => {
   const pathName = path.join(__dirname, '/seeds/');
 
+  if (!storage.isPathExists(pathName)) {
+    return getAllStates();
+  }
+
   fs.readdir(pathName, (err, files) => {
 
-    // if (err) {} // TODO: handle error
+    if (err) { return getAllStates(); }
 
     const promArr = [];
 
@@ -91,7 +99,8 @@ ipcMain.on('get-all-states', (event) => {
         const seeds = states.map((state, i) => { return { name: files[i], state } })
         event.sender.send('get-all-states-reply', { seeds });
       })
-      .catch(() => { // TODO: handle error
+      .catch(() => {
+        return getAllStates();
       });
   });
 });
