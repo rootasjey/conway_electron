@@ -7,7 +7,7 @@ import * as storage from 'ya-storage'
 import * as fs from 'fs'
 import { Promise } from 'bluebird-lst';
 
-import { born, kill } from './algo';
+import { born, kill } from './algorithms';
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 

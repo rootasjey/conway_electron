@@ -1,4 +1,5 @@
 /**
+ * Return cells to born.
  * for each cell alive
  * 1. get 8 neightbours
  * 2. for each neightbour
@@ -59,6 +60,18 @@ function checkAliveNeighbours({ x, y, cells, rows, columns }) {
   return aliveNeighbours === 3
 }
 
+export function convertArrayToHash(arr = []) {
+  const hash = {};
+
+  arr.map((item) => hash[`${item.x},${item.y}`] = item);
+
+  return hash;
+}
+
+/**
+ * Return cells to kill.
+ * @param {Object} config
+ */
 export function kill(config = {}) {
   const { cells = [], rows = 0, columns = 0 } = config;
   const cellsToKill = {};
@@ -73,7 +86,7 @@ export function kill(config = {}) {
   return cellsToKill;
 }
 
-function canBeKilled({ x, y, cells, rows, columns }) {
+export function canBeKilled({ x, y, cells, rows, columns }) {
   let aliveNeighbours = 0;
 
   for (let x1 = x - 1; x1 <= x + 1; x1++) {

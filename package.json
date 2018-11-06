@@ -1,8 +1,9 @@
 {
   "name": "conway",
-  "version": "0.8.0",
+  "version": "1.0.0",
   "license": "MIT",
   "scripts": {
+    "start": "electron-webpack dev",
     "dev": "electron-webpack dev",
     "compile": "electron-webpack",
     "dist": "yarn compile && electron-builder",
