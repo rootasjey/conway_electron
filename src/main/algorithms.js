@@ -1,63 +1,64 @@
 /**
  * Return cells to born.
- * for each cell alive
- * 1. get 8 neightbours
- * 2. for each neightbour
- * 3. if cell is dead: OK
- * 4. check if dead cell has 3 neightbours alive cells
- * 5. if so, born cell
- *
  * @param {Object} config
  */
 export function born(config = {}) {
-  const { cells = [], rows = 0, columns = 0 } = config;
+  const { cells = {}, rows = 0, columns = 0 } = config;
   const cellsToBorn = {};
 
   for (const [, cell] of Object.entries(cells)) {
-    for (let x = cell.x - 1; x <= cell.x + 1; x++) {
-      for (let y = cell.y - 1; y <= cell.y + 1; y++) {
-        // out of bounds
-        let x1 = x < 0 ? columns - x : x;
-        let y1 = y < 0 ? rows - y : y;
+    const neighbours = getNeighbours({ x: cell.x, y: cell.y });
 
-        x1 = x1 % columns;
-        y1 = y1 % rows;
+    neighbours.map((neighbour) => {
+      const deadCell = getCell({ target: neighbour, cells, rows, columns });
 
-        const deadCell = cells[`${x1},${y1}`]
+      if (!deadCell) {
+        const canBeAlive = checkAliveNeighbours({ target: neighbour, cells, rows, columns });
 
-        if (!deadCell) {
-          const canBeAlive = checkAliveNeighbours({ x: x1, y: y1, cells, rows, columns });
-
-          if (canBeAlive) {
-            cellsToBorn[`${x1},${y1}`] = { x: x1, y: y1 };
-          }
+        if (canBeAlive) {
+          const { x, y } = getNormalizedCoord({ x: neighbour.x, y: neighbour.y, rows, columns });
+          cellsToBorn[`${x},${y}`] = { x, y };
         }
       }
-    }
+    })
   }
 
   return cellsToBorn;
 }
 
-function checkAliveNeighbours({ x, y, cells, rows, columns }) {
+export function canBeKilled(config = {}) {
+  const { x, y, cells, rows, columns } = config;
+  let aliveNeighbours = 0;
+
+  const neighbours = getNeighbours({ x, y });
+
+  neighbours.map((neighbour) => {
+    if (aliveNeighbours > 3) { return; } // early check
+
+    const { x, y } = getNormalizedCoord({ x: neighbour.x, y: neighbour.y, rows, columns });
+    const key = `${x},${y}`;
+
+    if (cells[key]) { aliveNeighbours++; }
+  });
+
+  return aliveNeighbours !== 2 && aliveNeighbours !== 3;
+}
+
+function checkAliveNeighbours(config = {}) {
+  const { target, cells, rows, columns } = config;
   let aliveNeighbours = 0
 
-  for (let x1 = x - 1; x1 <= x + 1; x1++) {
-    for (let y1 = y - 1; y1 <= y + 1; y1++) {
-      // out of bounds
-      let x2 = x1 < 0 ? columns - x1 : x1
-      let y2 = y1 < 0 ? rows - y1 : y1
+  const neighbours = getNeighbours(target);
 
-      x2 = x1 % columns
-      y2 = y1 % rows
+  neighbours.map((neighbour) => {
+    const cellExist = getCell({ target: neighbour, cells, rows, columns });
 
-      if (cells[`${x2},${y2}`]) {
-        aliveNeighbours++
-      }
+    if (cellExist) {
+      aliveNeighbours++
     }
-  }
+  });
 
-  return aliveNeighbours === 3
+  return aliveNeighbours === 3;
 }
 
 export function convertArrayToHash(arr = []) {
@@ -68,12 +69,71 @@ export function convertArrayToHash(arr = []) {
   return hash;
 }
 
+function getCell(config = {}) {
+  const { target, cells = {}, rows = 0, columns = 0 } = config;
+
+  const { x, y } = getNormalizedCoord({ x: target.x, y: target.y, rows, columns });
+
+  return cells[`${x},${y}`];
+}
+
+function getNormalizedCoord(config = {}) {
+  const { columns, rows, x, y } = config;
+
+  let normalizedX = x < 0 ? columns + x : x;
+  let normalizedY = y < 0 ? rows + y : y;
+
+  normalizedX = normalizedX % columns;
+  normalizedY = normalizedY % rows;
+
+  return { x: normalizedX, y: normalizedY };
+}
+
+function getNeighbours({x, y}) {
+  const vector = [
+    {
+      x: -1,
+      y: -1,
+    },
+    {
+      x: 0,
+      y: -1,
+    },
+    {
+      x: 1,
+      y: -1,
+    },
+    {
+      x: 1,
+      y: 0,
+    },
+    {
+      x: 1,
+      y: 1,
+    },
+    {
+      x: 0,
+      y: 1,
+    },
+    {
+      x: -1,
+      y: 1,
+    },
+    {
+      x: -1,
+      y: 0,
+    },
+  ];
+
+  return vector.map((coord) => { return { x: x + coord.x, y: y + coord.y }});
+}
+
 /**
  * Return cells to kill.
  * @param {Object} config
  */
 export function kill(config = {}) {
-  const { cells = [], rows = 0, columns = 0 } = config;
+  const { cells = {}, rows = 0, columns = 0 } = config;
   const cellsToKill = {};
 
   for (const [, cell] of Object.entries(cells)) {
@@ -84,30 +144,4 @@ export function kill(config = {}) {
   }
 
   return cellsToKill;
-}
-
-export function canBeKilled({ x, y, cells, rows, columns }) {
-  let aliveNeighbours = 0;
-
-  for (let x1 = x - 1; x1 <= x + 1; x1++) {
-    for (let y1 = y - 1; y1 <= y + 1; y1++) {
-      // out of bounds
-      let x2 = x1 < 0 ? columns - x1 : x1;
-      let y2 = y1 < 0 ? rows - y1 : y1;
-
-      x2 = x1 % columns;
-      y2 = y1 % rows;
-
-      if (x2 === x && y2 === y) { continue; }
-
-      if (cells[`${x2},${y2}`]) {
-        aliveNeighbours++;
-      }
-
-      // Early check
-      if (aliveNeighbours > 3) return true;
-    }
-  }
-
-  return aliveNeighbours !== 2 && aliveNeighbours !== 3;
 }
