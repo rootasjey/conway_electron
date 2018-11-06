@@ -2,23 +2,13 @@ import 'phaser';
 
 import { ipcRenderer } from 'electron';
 
+import defaultConfig from './defaultConfig.json';
+
 export default class MainScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MainScene' });
 
-    this.config = {
-      cellSize: { h: 0, w: 0 },
-      colors: {
-        cellBorder  : 0x78e08f,
-        cell        : 0xb8e994,
-        editionMode : { add: 0xb8e994, remove: 0xED4C67 },
-        grid        : 0xecf0f1,
-      },
-      dimensions: {
-        columns : 80,
-        rows    : 40,
-      },
-    };
+    this.config = defaultConfig;
   }
 
   init() {
