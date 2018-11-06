@@ -13,5 +13,6 @@ const config = {
 window.game = new Phaser.Game(config);
 
 window.addEventListener('resize', () => {
+  if (window.game.scene.scenes.length === 0) { return; }
   window.game.scene.scenes[0].events.emit('resize')
 });
