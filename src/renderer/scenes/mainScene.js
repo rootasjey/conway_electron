@@ -32,6 +32,7 @@ export default class MainScene extends Phaser.Scene {
       cells         : {},
       counter       : {},
       editionMode   : 'add',
+      lines         : [],
       pointer       : {},
       seedsPanel    : {},
     };
@@ -52,12 +53,12 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  create() {
+  create(config = {}) {
     const { columns, rows } = this.config.dimensions;
 
     this.createGrid({ columns, rows, debug: true })
-      .createInitialState()
       .createCounter()
+      .createInitialState(config)
       .createUIControls()
       .createPointer()
       .listenEvents();
@@ -202,20 +203,30 @@ export default class MainScene extends Phaser.Scene {
     if (debug) {
       for (let index = 0; index < columns; index++) {
         const columnOffset = columnSize * index;
-        this.add.line(0, 0, columnOffset, 0, columnOffset, columnHeight, color);
+        const line = this.add.line(0, 0, columnOffset, 0, columnOffset, columnHeight, color);
+
+        this.ui.lines.push(line);
       }
 
       for (let index = 0; index < rows; index++) {
         const rowOffset = rowSize * index;
-        this.add.line(0, 0, 0, rowOffset, rowWidth, rowOffset, color);
+        const line = this.add.line(0, 0, 0, rowOffset, rowWidth, rowOffset, color);
+
+        this.ui.lines.push(line);
       }
     }
 
     return this;
   }
 
-  createInitialState() {
-    ipcRenderer.send('get-initial-state');
+  createInitialState(config = {}) {
+    if (config.add) {
+      this.renderState(config);
+      this.state.ready = true;
+      return this;
+    }
+
+    ipcRenderer.send('get-initial-state', config);
 
     ipcRenderer.on('get-initial-state-reply', (event, data) => {
       this.initCells(data);
@@ -457,6 +468,9 @@ export default class MainScene extends Phaser.Scene {
       button.destroy();
     }
 
+    this.ui.lines.map((line) => { line.destroy(); });
+    this.ui.lines = [];
+
     this.ui.counter.destroy();
     this.ui.pointer.destroy();
 
@@ -470,6 +484,9 @@ export default class MainScene extends Phaser.Scene {
 
     this.input.removeAllListeners('pointermove');
     this.input.removeAllListeners('pointerup');
+
+    // window.removeEventListener('resize', this.resize);
+    this.events.off('resize', this.resize, this);
 
     return this;
   }
@@ -554,7 +571,7 @@ export default class MainScene extends Phaser.Scene {
           delete cells[key];
         }
       }
-    })
+    });
 
     this.input.on('pointerup', () => {
       const { paused, ready } = this.state;
@@ -590,7 +607,9 @@ export default class MainScene extends Phaser.Scene {
         delete visualCells[key]
         delete cells[key]
       }
-    })
+    });
+
+    this.events.on('resize', this.resize, this);
 
     return this
   }
@@ -632,11 +651,22 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
-  restart() {
+  resize() {
+    const { innerHeight: height, innerWidth: width } = window;
+
+    this.cameras.resize(width, height);
+    this.restart({
+      add     : Object.assign({}, this.state.cells),
+      remove  : {},
+      step    : this.state.step,
+    });
+  }
+
+  restart(config = {}) {
     this
       .freeMemory()
       .init()
-      .create();
+      .create(config);
   }
 
   start() {

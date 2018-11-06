@@ -1,6 +1,9 @@
+import './style.css';
+
 import MainScene from './scenes/mainScene';
 
 const config = {
+  autoResize: true,
   type: Phaser.AUTO,
   width: window.innerWidth,
   height: window.innerHeight,
@@ -9,5 +12,6 @@ const config = {
 
 window.game = new Phaser.Game(config);
 
-document.body.style.margin = '0px';
-document.body.style.padding = '0px';
+window.addEventListener('resize', () => {
+  window.game.scene.scenes[0].events.emit('resize')
+});
