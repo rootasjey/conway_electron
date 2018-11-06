@@ -1,0 +1,19 @@
+{
+    "cellSize": {
+        "h": 0,
+        "w": 0
+    },
+      "colors": {
+        "cellBorder": "0x78e08f",
+        "cell": "0x48dbfb",
+        "editionMode": {
+            "add": "0x48dbfb",
+            "remove": "0xED4C67"
+        },
+        "grid": "0xecf0f1"
+    },
+      "dimensions": {
+        "columns": 80,
+        "rows": 40
+    }
+}
