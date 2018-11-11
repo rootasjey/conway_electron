@@ -1,5 +1,6 @@
 import './style.css';
 
+import ConwayGame from './ConwayGame';
 import MainScene from './scenes/mainScene';
 
 const config = {
@@ -10,9 +11,9 @@ const config = {
   scene: [MainScene],
 };
 
-window.game = new Phaser.Game(config);
+new ConwayGame(new Phaser.Game(config)); // tslint:disable-line no-unused-expression
 
 window.addEventListener('resize', () => {
-  if (window.game.scene.scenes.length === 0) { return; }
-  window.game.scene.scenes[0].events.emit('resize')
+  if (ConwayGame.instance.scene.scenes.length === 0) { return; }
+  ConwayGame.instance.scene.scenes[0].events.emit('resize');
 });

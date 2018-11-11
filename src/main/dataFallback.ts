@@ -4,11 +4,17 @@ import sample2      from './seeds/sample2.json';
 import spaceships   from './seeds/spaceships.json';
 import stillLives   from './seeds/still-lives.json';
 
-export function getInitialSate() {
+/**
+ * Return the 1st initial state found.
+ */
+export function getInitialSate(): Cell[] {
     return oscillators;
 }
 
-export function getAllStates() {
+/**
+ * Return all available initial states.
+ */
+export function getAllStates(): NamedState[] {
     return [
         {
             name: 'oscillators',
@@ -31,4 +37,16 @@ export function getAllStates() {
             state: stillLives,
         },
     ]
+}
+
+export function getState(name: string) {
+    const namedState = getAllStates()
+        .filter(({ name: stateName }) => stateName === name);
+
+    if (namedState.length === 0) {
+        console.warn(`The named state ${name} doesn't exist. Consider trying another name.`);
+        return { name: '', state: [] };
+    }
+
+    return namedState[0]
 }

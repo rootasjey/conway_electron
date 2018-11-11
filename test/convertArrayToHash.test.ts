@@ -3,7 +3,7 @@ import test from 'ava';
 import { convertArrayToHash } from '../src/main/algorithms';
 
 test('convertArrayToHash should return an empty object when passing an empty array', (t) => {
-  const arr = [];
+  const arr: Cell[] = [];
 
   const cells = convertArrayToHash(arr);
 

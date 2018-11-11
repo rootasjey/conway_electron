@@ -1,59 +1,61 @@
 import 'phaser';
 
-import { ipcRenderer } from 'electron';
+import { Event, ipcRenderer } from 'electron';
 
 import defaultConfig from './defaultConfig.json';
 
 export default class MainScene extends Phaser.Scene {
+  private config: BoardConfig = defaultConfig;
+
+  private state: BoardState = {
+    cells: {},
+    paused: true,
+    ready: false,
+    step: 0,
+  };
+
+  /**
+   * Simulation elapsing time in ms.
+   */
+  private timer: number | undefined;
+
+  private ui: GameUI = {
+    buttons: {
+      editionMode: undefined,
+      pause: undefined,
+      play: undefined,
+      restart: undefined,
+      seeds: undefined,
+    },
+    cells: {},
+    counter: undefined,
+    editionMode: 'add',
+    lines: [],
+    pointer: undefined,
+    seedsPanel: undefined,
+  };
+
   constructor() {
     super({ key: 'MainScene' });
-
-    this.config = defaultConfig;
   }
 
-  init() {
-    this.state = {
-      cells   : {},
-      paused  : true,
-      ready   : false,
-      step    : 0,
-    };
+  public cleanBoard() {
+    const cells = this.state.cells;
+    const visualCells: VisualCellMap = this.ui.cells;
 
-    this.timer = undefined;
-
-    this.ui = {
-      buttons: {
-        editionMode : {},
-        pause       : {},
-        play        : {},
-        restart     : {},
-        seeds       : {},
-      },
-      cells         : {},
-      counter       : {},
-      editionMode   : 'add',
-      lines         : [],
-      pointer       : {},
-      seedsPanel    : {},
-    };
-
-    return this;
-  }
-
-  cleanBoard() {
-    for (const [key, cell] of Object.entries(this.ui.cells)) {
+    for (const [key, cell] of Object.entries(visualCells)) {
       cell.destroy();
-      delete this.ui.cells[key];
+      delete visualCells[key];
     }
 
-    for (const [key] of Object.entries(this.state.cells)) {
-      delete this.state.cells[key];
+    for (const [key] of Object.entries(cells)) {
+      delete cells[key];
     }
 
     return this;
   }
 
-  create(config = {}) {
+  public create(config: State) {
     const { columns, rows } = this.config.dimensions;
 
     this.createGrid({ columns, rows, debug: true })
@@ -64,10 +66,11 @@ export default class MainScene extends Phaser.Scene {
       .listenEvents();
   }
 
-  createBoard(config = {}) {
+  public createBoard(config: BoardSeedConfig) {
     const { i, name, seedsPanel, state }  = config;
-    const { last: seedsBoards }           = seedsPanel;
     const { innerWidth: panelWidth }      = window;
+
+    const seedsBoards = seedsPanel.last as Phaser.GameObjects.Container;
 
     const rectColor   = 0xED4C67;
     const rectMargin  = 40;
@@ -117,22 +120,19 @@ export default class MainScene extends Phaser.Scene {
       .add(text);
   }
 
-  createCounter() {
+  public createCounter() {
     const { step } = this.state;
     const x = 30;
     const y = window.innerHeight - 70;
     const style = { fontFamily: 'Arial', fontSize: 64, color: '#fbc531' };
 
     this.ui.counter = this.add
-      .text(x, y, `${step}`, style)
-      .setInteractive()
-      .setAlpha(1)
-      .setDepth(2);
+      .text(x, y, `${step}`, style);
 
     return this;
   }
 
-  createEditionModeButton() {
+  public createEditionModeButton() {
     const { innerWidth: x } = window;
     const y = 190;
     const color = 0xFFC312;
@@ -161,6 +161,8 @@ export default class MainScene extends Phaser.Scene {
       if (!ready) { return; }
 
       if (paused) {
+        const pointer = this.ui.pointer as Phaser.GameObjects.Rectangle;
+
         const { add: colorAdd, remove: colorRemove }
           = this.config.colors.editionMode;
 
@@ -169,11 +171,11 @@ export default class MainScene extends Phaser.Scene {
 
         if (this.ui.editionMode === 'add') {
           r1.setVisible(true);
-          this.ui.pointer.setFillStyle(colorAdd);
+          pointer.setFillStyle(parseInt(colorAdd, 16));
 
         } else {
           r1.setVisible(false);
-          this.ui.pointer.setFillStyle(colorRemove);
+          pointer.setFillStyle(parseInt(colorRemove, 16));
         }
       }
     });
@@ -189,8 +191,8 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  createGrid({ columns = 80, rows = 40, debug = false }) {
-    const { grid: color } = this.config.colors;
+  public createGrid({ columns = 80, rows = 40, debug = false }) {
+    const color = parseInt(this.config.colors.grid, 16);
 
     const rowSize         = window.innerHeight / rows;
     const columnSize      = window.innerWidth / columns;
@@ -219,8 +221,8 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  createInitialState(config = {}) {
-    if (config.add) {
+  public createInitialState(config: State) {
+    if (config.add && Object.keys(config.add).length > 0) {
       this.renderState(config);
       this.state.ready = true;
       return this;
@@ -228,14 +230,14 @@ export default class MainScene extends Phaser.Scene {
 
     ipcRenderer.send('get-initial-state', config);
 
-    ipcRenderer.on('get-initial-state-reply', (event, data) => {
+    ipcRenderer.on('get-initial-state-reply', (event: Event, data: Cell[]) => {
       this.initCells(data);
     });
 
     return this;
   }
 
-  createPauseButton() {
+  public createPauseButton() {
     const { innerWidth: x } = window;
     const y = 40;
 
@@ -267,8 +269,9 @@ export default class MainScene extends Phaser.Scene {
 
       if (!paused) {
         this.pause();
-        play.setVisible(true);
         pause.setVisible(false);
+
+        if (play) { play.setVisible(true); }
       }
     });
 
@@ -283,7 +286,7 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  createPlayButton() {
+  public createPlayButton() {
     const { innerWidth: x } = window;
     const y = 40;
 
@@ -305,9 +308,9 @@ export default class MainScene extends Phaser.Scene {
         this.start();
 
         play.setVisible(false);
-        pause.setVisible(true);
+        if (pause) { pause.setVisible(true); }
       }
-    })
+    });
 
     play
       .on('pointerover', () => {
@@ -320,9 +323,9 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  createPointer() {
+  public createPointer() {
     const { h, w } = this.config.cellSize;
-    const { cell: color } = this.config.colors;
+    const color = parseInt(this.config.colors.cell, 16);
 
     this.ui.pointer = this.add
       .rectangle(100, 20, w, h, color)
@@ -332,7 +335,7 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  createRestartButton() {
+  public createRestartButton() {
     const { innerWidth: x } = window;
     const y = 40;
 
@@ -348,7 +351,7 @@ export default class MainScene extends Phaser.Scene {
       .container(
         x - 45,
         y + 60,
-        [circle, triangle]
+        [circle, triangle],
       )
       .setSize(50, 60)
       .setInteractive()
@@ -358,28 +361,27 @@ export default class MainScene extends Phaser.Scene {
     const { restart } = this.ui.buttons;
 
     restart.once('destroy', () => {
-      circle.destroy()
+      circle.destroy();
       triangle.destroy();
     });
 
     restart
-      .on('pointerup', (pointer, x, y, options) => {
+      .on('pointerup', () => {
         if (!this.state.ready) { return; }
 
-        this.restart()
-        options.stopPropagation()
+        this.restart({ add: {}, remove: {}, step: 0 });
       })
       .on('pointerover', () => {
-        restart.setAlpha(1)
+        restart.setAlpha(1);
       })
       .on('pointerout', () => {
-        restart.setAlpha(.8)
+        restart.setAlpha(.8);
       });
 
     return this;
   }
 
-  createSeedsButton() {
+  public createSeedsButton() {
     const { innerWidth: x, innerHeight: y } = window;
     const color       = 0xA3CB38;
     const borderColor = 0x009432;
@@ -424,7 +426,7 @@ export default class MainScene extends Phaser.Scene {
       });
   }
 
-  createSeedsPanel() {
+  public createSeedsPanel() {
     const { innerHeight: h, innerWidth: w } = window;
 
     const borderColor = 0x1B1464;
@@ -452,7 +454,7 @@ export default class MainScene extends Phaser.Scene {
     return this.ui.seedsPanel;
   }
 
-  createUIControls() {
+  public createUIControls() {
     this
       .createPauseButton()
       .createPlayButton()
@@ -463,7 +465,10 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  freeMemory() {
+  public freeMemory() {
+    const counter = this.ui.counter as Phaser.GameObjects.Text;
+    const pointer = this.ui.pointer as Phaser.GameObjects.Rectangle;
+
     for (const [, button] of Object.entries(this.ui.buttons)) {
       button.destroy();
     }
@@ -471,8 +476,8 @@ export default class MainScene extends Phaser.Scene {
     this.ui.lines.map((line) => { line.destroy(); });
     this.ui.lines = [];
 
-    this.ui.counter.destroy();
-    this.ui.pointer.destroy();
+    counter.destroy();
+    pointer.destroy();
 
     this.ui.pointer = undefined;
 
@@ -485,8 +490,36 @@ export default class MainScene extends Phaser.Scene {
     this.input.removeAllListeners('pointermove');
     this.input.removeAllListeners('pointerup');
 
-    // window.removeEventListener('resize', this.resize);
-    this.events.off('resize', this.resize, this);
+    this.events.off('resize', this.resize, this, false);
+
+    return this;
+  }
+
+  public init() {
+    this.state = {
+      cells: {},
+      paused: true,
+      ready: false,
+      step: 0,
+    };
+
+    this.timer = undefined;
+
+    this.ui = {
+      buttons: {
+        editionMode: undefined,
+        pause: undefined,
+        play: undefined,
+        restart: undefined,
+        seeds: undefined,
+      },
+      cells: {},
+      counter: undefined,
+      editionMode: 'add',
+      lines: [],
+      pointer: undefined,
+      seedsPanel: undefined,
+    };
 
     return this;
   }
@@ -494,11 +527,11 @@ export default class MainScene extends Phaser.Scene {
   /**
    * Draw cells
    */
-  initCells(seed) {
-    const { h, w }                = this.config.cellSize;
+  public initCells(seed: Cell[]) {
     const { cells }               = this.state;
-    const { cells: visualCells }  = this.ui;
-    const { cell: color }         = this.config.colors;
+    const color                   = parseInt(this.config.colors.cell, 16);
+    const { h, w }                = this.config.cellSize;
+    const visualCells             = this.ui.cells as VisualCellMap;
 
     seed
       .map((cell) => {
@@ -510,7 +543,7 @@ export default class MainScene extends Phaser.Scene {
           (cell.x + .5) * w,
           (cell.y + .5) * h,
           w, h,
-          color
+          color,
         );
 
         visualCells[key] = rect;
@@ -520,22 +553,25 @@ export default class MainScene extends Phaser.Scene {
     this.state.ready = true;
   }
 
-  listenEvents() {
-    ipcRenderer.on('tick-reply', (event, data) => {
+  public listenEvents() {
+    ipcRenderer.on('tick-reply', (event: Event, data: State) => {
       this.renderState(data);
-    })
+    });
 
     // TODO: Create dedicated container for board
-    this.input.on('pointermove', (pointer) => {
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       const { paused, ready } = this.state;
+      // const pointer = this.ui.pointer as Phaser.GameObjects.Rectangle;
 
       if (!paused || !ready) { return; }
 
       const { x, y } = pointer;
       const { h, w } = this.config.cellSize;
 
-      if (!this.ui.pointer.visible) {
-        this.ui.pointer.setVisible(true);
+      const cursor = this.ui.pointer as Phaser.GameObjects.Rectangle;
+
+      if (!cursor.visible) {
+        cursor.setVisible(true);
       }
 
       const cellX = Math.floor(x / w);
@@ -544,15 +580,16 @@ export default class MainScene extends Phaser.Scene {
       const newX  = (cellX + .5) * w;
       const newY  = (cellY + .5) * h;
 
-      this.ui.pointer.x = newX;
-      this.ui.pointer.y = newY;
+      cursor.x = newX;
+      cursor.y = newY;
 
-      const { cell: color } = this.config.colors;
+      const color = parseInt(this.config.colors.cell, 16);
 
       const key = `${cellX},${cellY}`;
 
       if (pointer.isDown) {
-        const { cells: visualCells, editionMode } = this.ui;
+        const { editionMode } = this.ui;
+        const visualCells = this.ui.cells as VisualCellMap;
         const { cells } = this.state;
 
         if (editionMode === 'add') {
@@ -565,7 +602,6 @@ export default class MainScene extends Phaser.Scene {
           if (!cells[key]) { return; }
 
           visualCells[key].destroy();
-          cells[key] = undefined;
 
           delete visualCells[key];
           delete cells[key];
@@ -578,59 +614,57 @@ export default class MainScene extends Phaser.Scene {
 
       if (!paused || !ready) { return; }
 
-      const { cells } = this.state
-      const { cells: visualCells, editionMode } = this.ui
+      const { cells }       = this.state;
+      const { editionMode } = this.ui;
+      const visualCells     = this.ui.cells as VisualCellMap;
 
-      const { h, w }        = this.config.cellSize
-      const { cell: color } = this.config.colors
-      const { x, y }        = this.ui.pointer
+      const color           = parseInt(this.config.colors.cell, 16);
+      const { h, w }        = this.config.cellSize;
+      const { x, y }        = this.ui.pointer as Phaser.GameObjects.Rectangle;
 
+      const cellX = Math.round((x / w) - .5);
+      const cellY = Math.round((y / h) - .5);
 
-      const cellX = Math.round((x / w) - .5)
-      const cellY = Math.round((y / h) - .5)
-
-
-      const key = `${cellX},${cellY}`
+      const key = `${cellX},${cellY}`;
 
       if (editionMode === 'add') {
         if (cells[key]) { return; }
 
-        visualCells[key] = this.add.rectangle(x, y, w, h, color)
-        cells[key] = { x: cellX, y: cellY }
+        visualCells[key] = this.add.rectangle(x, y, w, h, color);
+        cells[key] = { x: cellX, y: cellY };
 
       } else {
         if (!cells[key]) { return; }
 
-        visualCells[key].destroy()
-        cells[key] = undefined
+        visualCells[key].destroy();
 
-        delete visualCells[key]
-        delete cells[key]
+        delete visualCells[key];
+        delete cells[key];
       }
     });
 
     this.events.on('resize', this.resize, this);
 
-    return this
+    return this;
   }
 
-  pause() {
+  public pause() {
     window.clearInterval(this.timer);
     this.state.paused = true;
 
     return this;
   }
 
-  renderState(state = {}) {
+  public renderState(state: State) {
     const { add, remove }         = state;
     const { h, w }                = this.config.cellSize;
 
-    const { cells }               = this.state;
-    const { cells: visualCells }  = this.ui;
-    const { cell: color }         = this.config.colors;
+    const cells                   = this.state.cells as CellMap;
+    const visualCells             = this.ui.cells as VisualCellMap;
+    const color                   = parseInt(this.config.colors.cell, 16);
 
     this.state.step = state.step;
-    this.updateCounter(state.step);
+    this.updateCounter(state.step.toString());
 
     for (const [key, cell] of Object.entries(add)) {
       const rect = this.add.rectangle((cell.x + .5) * w, (cell.y + .5) * h, w, h, color);
@@ -639,19 +673,16 @@ export default class MainScene extends Phaser.Scene {
     }
 
     for (const [key] of Object.entries(remove)) {
-      if (!cells[key]) return;
-
-      cells[key] = undefined;
+      if (!cells[key]) { return; }
 
       visualCells[key].destroy();
-      visualCells[key] = undefined;
 
       delete visualCells[key];
       delete cells[key];
     }
   }
 
-  resize() {
+  public resize() {
     const { innerHeight: height, innerWidth: width } = window;
 
     this.cameras.resize(width, height);
@@ -662,29 +693,31 @@ export default class MainScene extends Phaser.Scene {
     });
   }
 
-  restart(config = {}) {
+  public restart(config: State) {
     this
       .freeMemory()
       .init()
       .create(config);
   }
 
-  start() {
-    this.timer = window.setInterval(() => { this.tick() }, 1000);
+  public start() {
+    this.timer = window.setInterval(() => { this.tick(); }, 1000);
     this.state.paused = false;
-    this.ui.pointer.setVisible(false);
+
+    const pointer = this.ui.pointer as Phaser.GameObjects.Rectangle;
+    pointer.setVisible(false);
 
     return this;
   }
 
-  stopTick() {
-    const { pause } = this.ui.buttons;
+  public stopTick() {
+    const pause = this.ui.buttons.pause as Phaser.GameObjects.Container;
 
     pause.setVisible(false);
     window.clearInterval(this.timer);
   }
 
-  tick() {
+  public tick() {
     const { cells, step }   = this.state;
     const { columns, rows } = this.config.dimensions;
 
@@ -695,10 +728,10 @@ export default class MainScene extends Phaser.Scene {
     ipcRenderer.send('tick', { cells, columns, rows, step });
   }
 
-  toggleSeedsPanel() {
-    let { seedsPanel } = this.ui;
+  public toggleSeedsPanel() {
+    let seedsPanel = this.ui.seedsPanel as Phaser.GameObjects.Container;
 
-    if (!seedsPanel.setVisible) {
+    if (!seedsPanel) {
       seedsPanel = this.createSeedsPanel();
     }
 
@@ -706,7 +739,7 @@ export default class MainScene extends Phaser.Scene {
       seedsPanel.setVisible(false);
       this.state.ready = true;
 
-      const seedsBoards = seedsPanel.last;
+      const seedsBoards = seedsPanel.last as Phaser.GameObjects.Container;
       seedsBoards.removeAll(true);
 
       return;
@@ -715,26 +748,27 @@ export default class MainScene extends Phaser.Scene {
     seedsPanel.setVisible(true);
     this.state.ready = false;
 
-    ipcRenderer.once('get-all-states-reply', (event, data) => {
-      data.seeds
-        .filter((seed) => { return seed.state.length > 0 })
+    ipcRenderer.once('get-all-states-reply', (event: Event, seeds: NamedState[]) => {
+      seeds
+        .filter((seed) => seed.state.length > 0)
         .map((seed, i) => {
           const { name, state } = seed;
-          this.createBoard({ i, name, seedsPanel, state })
+          this.createBoard({ i, name, seedsPanel, state });
         });
     });
 
     ipcRenderer.send('get-all-states');
   }
 
-  updateCounter(text) {
+  public updateCounter(text: string) {
+    const counter = this.ui.counter  as Phaser.GameObjects.Text;
     // Used to update interactive zone
-    if (this.ui.counter.text.length !== `${text}`.length) {
-      this.ui.counter.destroy();
+    if (counter.text.length !== `${text}`.length) {
+      counter.destroy();
       this.createCounter();
       return;
     }
 
-    this.ui.counter.text = text;
+    counter.text = text;
   }
 }
