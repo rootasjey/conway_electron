@@ -5,7 +5,7 @@ import MainScene from './scenes/mainScene';
 
 const config = {
   autoResize: true,
-  type: Phaser.AUTO,
+  type: Phaser.WEBGL,
   width: window.innerWidth,
   height: window.innerHeight,
   scene: [MainScene],

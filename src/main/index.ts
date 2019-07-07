@@ -23,6 +23,9 @@ function createMainWindow() {
   const window = new BrowserWindow({
     width: 1200,
     height: 500,
+    webPreferences: {
+      nodeIntegration: true,
+    },
   });
 
   if (isDevelopment) {
