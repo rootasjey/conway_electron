@@ -193,12 +193,15 @@ export default class MainScene extends Phaser.Scene {
 
   public createGrid({ columns = 80, rows = 40, debug = false }) {
     const color = parseInt(this.config.colors.grid, 16);
+    const iconsBarOffset = this.config.iconsBar.width;
+
+    const width = window.innerWidth - iconsBarOffset;
 
     const rowSize         = window.innerHeight / rows;
-    const columnSize      = window.innerWidth / columns;
+    const columnSize      = width / columns;
 
     const columnHeight    = window.innerHeight * 2;
-    const rowWidth        = window.innerWidth * 2;
+    const rowWidth        = width * 2;
 
     this.config.cellSize  = { h: rowSize, w: columnSize };
 

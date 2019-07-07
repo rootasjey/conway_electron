@@ -13,6 +13,10 @@ interface BoardConfig {
    * Rows & columns number.
    */
   dimensions: Dimensions;
+
+  iconsBar: {
+    width: number;
+  }
 }
 
 interface BoardSeedConfig {

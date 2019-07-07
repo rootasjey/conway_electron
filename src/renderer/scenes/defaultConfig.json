@@ -15,5 +15,8 @@
     "dimensions": {
         "columns": 80,
         "rows": 40
+    },
+    "iconsBar": {
+        "width": 100
     }
 }
