@@ -493,8 +493,6 @@ export default class MainScene extends Phaser.Scene {
     this.input.removeAllListeners('pointermove');
     this.input.removeAllListeners('pointerup');
 
-    this.events.off('resize', this.resize, this, false);
-
     return this;
   }
 
@@ -527,9 +525,7 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  /**
-   * Draw cells
-   */
+  /** Draw cells */
   public initCells(seed: Cell[]) {
     const { cells }               = this.state;
     const color                   = parseInt(this.config.colors.cell, 16);
@@ -646,8 +642,6 @@ export default class MainScene extends Phaser.Scene {
       }
     });
 
-    this.events.on('resize', this.resize, this);
-
     return this;
   }
 
@@ -683,17 +677,6 @@ export default class MainScene extends Phaser.Scene {
       delete visualCells[key];
       delete cells[key];
     }
-  }
-
-  public resize() {
-    const { innerHeight: height, innerWidth: width } = window;
-
-    this.cameras.resize(width, height);
-    this.restart({
-      add     : Object.assign({}, this.state.cells),
-      remove  : {},
-      step    : this.state.step,
-    });
   }
 
   public restart(config: State) {
