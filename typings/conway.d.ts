@@ -89,6 +89,17 @@ interface ColorConfig {
   grid: string;
 }
 
+declare enum Control {
+  play = 'play',
+  pause = 'pause',
+  editionModeAdd = 'editionModeAdd',
+  editionModeRemove = 'editionModeRemove',
+}
+
+interface ControlChangedConfig {
+  newControl: Control;
+}
+
 /**
  * Has a `columns` & a `rows` property.
  */

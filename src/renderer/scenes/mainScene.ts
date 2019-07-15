@@ -4,6 +4,10 @@ import { Event, ipcRenderer } from 'electron';
 
 import defaultConfig from './defaultConfig.json';
 
+import ButtonsControl from '../components/buttonsControl';
+import SeedsPanel from '../components/seedsPanel';
+import { Control } from '../const/control';
+
 export default class MainScene extends Phaser.Scene {
   private config: BoardConfig = defaultConfig;
 
@@ -14,9 +18,9 @@ export default class MainScene extends Phaser.Scene {
     step: 0,
   };
 
-  /**
-   * Simulation elapsing time in ms.
-   */
+  private isGridDebug: boolean = false;
+
+  /** Simulation elapsing time in ms. */
   private timer: number | undefined;
 
   private ui: GameUI = {
@@ -35,27 +39,69 @@ export default class MainScene extends Phaser.Scene {
     seedsPanel: undefined,
   };
 
+  private seedsPan!: SeedsPanel;
+
   constructor() {
     super({ key: 'MainScene' });
   }
 
-  public cleanBoard() {
-    const cells = this.state.cells;
-    const visualCells: VisualCellMap = this.ui.cells;
+  private controlPause() {
+    if (!this.state.ready) { return; }
 
-    for (const [key, cell] of Object.entries(visualCells)) {
-      cell.destroy();
-      delete visualCells[key];
+    const { paused } = this.state;
+
+    if (!paused) {
+      this.pause();
+      this.notifyControlChanged(Control.pause);
     }
-
-    for (const [key] of Object.entries(cells)) {
-      delete cells[key];
-    }
-
-    return this;
   }
 
-  public create(config: State) {
+  private controlPlay() {
+    const { paused, ready } = this.state;
+
+    if (!ready) { return; }
+
+    if (paused) {
+      this.start();
+      this.notifyControlChanged(Control.play);
+    }
+  }
+
+  private controlRestart() {
+    if (!this.state.ready) { return; }
+    this.reset();
+  }
+
+  private controltoggleEditionMode() {
+    const { paused, ready } = this.state;
+
+    if (!ready) { return; }
+
+    if (paused) {
+      const pointer = this.ui.pointer as Phaser.GameObjects.Rectangle;
+
+      const { add: colorAdd, remove: colorRemove }
+        = this.config.colors.editionMode;
+
+      this.ui.editionMode = this.ui.editionMode === 'add' ?
+        'remove' : 'add';
+
+      if (this.ui.editionMode === 'add') {
+        pointer.setFillStyle(parseInt(colorAdd, 16));
+        this.notifyControlChanged(Control.editionModeRemove);
+
+      } else {
+        pointer.setFillStyle(parseInt(colorRemove, 16));
+        this.notifyControlChanged(Control.editionModeAdd);
+      }
+    }
+  }
+
+  private controlToggleSeedsPanel() {
+    this.toggleSeedsPanel();
+  }
+
+  private create(config: State) {
     const { columns, rows } = this.config.dimensions;
 
     this.createGrid({ columns, rows, debug: true })
@@ -64,63 +110,12 @@ export default class MainScene extends Phaser.Scene {
       .createUIControls()
       .createPointer()
       .listenEvents();
+
+    this.seedsPan = new SeedsPanel(this);
+    this.seedsPan.hide();
   }
 
-  public createBoard(config: BoardSeedConfig) {
-    const { i, name, seedsPanel, state }  = config;
-    const { innerWidth: panelWidth }      = window;
-
-    const seedsBoards = seedsPanel.last as Phaser.GameObjects.Container;
-
-    const rectColor   = 0xED4C67;
-    const rectMargin  = 40;
-    const rectWidth   = 150;
-
-    const rectPerLine = Math.floor(panelWidth / (rectWidth + rectMargin)) - 1;
-
-    const rectX = (rectWidth + rectMargin) * (i % rectPerLine) + rectWidth;
-    const rectY = 100 + (200 * Math.floor(i / rectPerLine));
-
-    const maxStrLength = 20;
-
-    let boardName = name.replace('.json', '');
-
-    boardName = boardName.length > maxStrLength ?
-      boardName.substring(0, maxStrLength) + '...' : boardName;
-
-    const style = { fontFamily: 'Arial', fontSize: 20, color: '#fff' };
-    const textX = rectX - (rectWidth / 2);
-    const textY = rectY + (rectWidth / 1.75);
-
-    const text = this.add.text(textX, textY, `${boardName}`, style);
-
-    const rect = this.add
-      .rectangle(rectX, rectY, rectWidth, rectWidth, rectColor)
-      .setInteractive();
-
-    rect
-      .on('pointerover', () => {
-        rect.setScale(1.2, 1.2);
-      })
-      .on('pointerout', () => {
-        rect.setScale(1, 1);
-      })
-      .on('pointerdown', () => {
-        this
-          .cleanBoard()
-          .initCells(state);
-
-        seedsPanel.setVisible(false);
-        seedsBoards.removeAll(true);
-        this.state.ready = true;
-      });
-
-    seedsBoards
-      .add(rect)
-      .add(text);
-  }
-
-  public createCounter() {
+  private createCounter() {
     const { step } = this.state;
     const x = 30;
     const y = window.innerHeight - 70;
@@ -132,66 +127,7 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  public createEditionModeButton() {
-    const { innerWidth: x } = window;
-    const y = 190;
-    const color = 0xFFC312;
-
-    const r1 = this.add.rectangle(0, 0, 10, 50, color);
-    const r2 = this.add.rectangle(0, 0, 50, 10, color);
-
-    this.ui.buttons.editionMode = this.add
-      .container(x - 50, y, [r1, r2])
-      .setSize(50, 100)
-      .setInteractive()
-      .setAlpha(.8)
-      .setDepth(2);
-
-    // Events
-    const { editionMode } = this.ui.buttons;
-
-    editionMode.once('destroy', () => {
-      r1.destroy();
-      r2.destroy();
-    });
-
-    editionMode.on('pointerdown', () => {
-      const { paused, ready } = this.state;
-
-      if (!ready) { return; }
-
-      if (paused) {
-        const pointer = this.ui.pointer as Phaser.GameObjects.Rectangle;
-
-        const { add: colorAdd, remove: colorRemove }
-          = this.config.colors.editionMode;
-
-        this.ui.editionMode = this.ui.editionMode === 'add' ?
-          'remove' : 'add';
-
-        if (this.ui.editionMode === 'add') {
-          r1.setVisible(true);
-          pointer.setFillStyle(parseInt(colorAdd, 16));
-
-        } else {
-          r1.setVisible(false);
-          pointer.setFillStyle(parseInt(colorRemove, 16));
-        }
-      }
-    });
-
-    editionMode
-      .on('pointerover', () => {
-        editionMode.setAlpha(1);
-      })
-      .on('pointerout', () => {
-        editionMode.setAlpha(.8);
-      });
-
-    return this;
-  }
-
-  public createGrid({ columns = 80, rows = 40, debug = false }) {
+  private createGrid({ columns = 80, rows = 40, debug = false }) {
     const color = parseInt(this.config.colors.grid, 16);
     const iconsBarOffset = this.config.iconsBar.width;
 
@@ -219,12 +155,14 @@ export default class MainScene extends Phaser.Scene {
 
         this.ui.lines.push(line);
       }
+
+      this.isGridDebug = true;
     }
 
     return this;
   }
 
-  public createInitialState(config: State) {
+  private createInitialState(config: State) {
     if (config.add && Object.keys(config.add).length > 0) {
       this.renderState(config);
       this.state.ready = true;
@@ -240,93 +178,7 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  public createPauseButton() {
-    const { innerWidth: x } = window;
-    const y = 40;
-
-    // Pause button
-    const r1 = this.add.rectangle(0, 0, 10, 50, 0x6666ff);
-    const r2 = this.add.rectangle(20, 0, 10, 50, 0x6666ff);
-
-    this.ui.buttons.pause = this.add
-      .container(x - 60, y, [r1, r2])
-      .setSize(50, 100)
-      .setInteractive()
-      .setAlpha(.8)
-      .setVisible(false)
-      .setDepth(2);
-
-    // Events
-    const { pause } = this.ui.buttons;
-
-    pause.once('destroy', () => {
-      r1.destroy();
-      r2.destroy();
-    });
-
-    pause.on('pointerdown', () => {
-      if (!this.state.ready) { return; }
-
-      const { paused }  = this.state;
-      const { play }    = this.ui.buttons;
-
-      if (!paused) {
-        this.pause();
-        pause.setVisible(false);
-
-        if (play) { play.setVisible(true); }
-      }
-    });
-
-    pause
-      .on('pointerover', () => {
-        pause.setAlpha(1);
-      })
-      .on('pointerout', () => {
-        pause.setAlpha(.8);
-      });
-
-    return this;
-  }
-
-  public createPlayButton() {
-    const { innerWidth: x } = window;
-    const y = 40;
-
-    this.ui.buttons.play = this.add
-      .triangle(x - 45, y, 0, 0, 0, 45, 45, 22.5, 0xe84118)
-      .setInteractive()
-      .setAlpha(.8)
-      .setDepth(2);
-
-    // Events
-    const { play, pause } = this.ui.buttons;
-
-    play.on('pointerdown', () => {
-      const { paused, ready } = this.state;
-
-      if (!ready) { return; }
-
-      if (paused) {
-        this.start();
-
-        play.setVisible(false);
-        if (pause) { pause.setVisible(true); }
-      }
-    });
-
-    play
-      .on('pointerover', () => {
-        play.setAlpha(1);
-      })
-      .on('pointerout', () => {
-        play.setAlpha(.8);
-      });
-
-    return this;
-  }
-
-  public createPointer() {
+  private createPointer() {
     const { h, w } = this.config.cellSize;
     const color = parseInt(this.config.colors.cell, 16);
 
@@ -338,165 +190,29 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  public createRestartButton() {
-    const { innerWidth: x } = window;
-    const y = 40;
-
-    const circle = this.add
-      .circle(0, 10, 20)
-      .setStrokeStyle(10, 0x00a8ff);
-
-    const triangle = this.add
-      .triangle(-17, 5, 0, 0, 0, 30, 30, 8, 0x00a8ff)
-      .setRotation(39);
-
-    this.ui.buttons.restart = this.add
-      .container(
-        x - 45,
-        y + 60,
-        [circle, triangle],
-      )
-      .setSize(50, 60)
-      .setInteractive()
-      .setAlpha(.8)
-      .setDepth(2);
-
-    const { restart } = this.ui.buttons;
-
-    restart.once('destroy', () => {
-      circle.destroy();
-      triangle.destroy();
-    });
-
-    restart
-      .on('pointerup', () => {
-        if (!this.state.ready) { return; }
-
-        this.restart({ add: {}, remove: {}, step: 0 });
-      })
-      .on('pointerover', () => {
-        restart.setAlpha(1);
-      })
-      .on('pointerout', () => {
-        restart.setAlpha(.8);
-      });
-
+  private createUIControls() {
+    // tslint:disable-next-line: no-unused-expression
+    new ButtonsControl(this);
     return this;
   }
 
-  public createSeedsButton() {
-    const { innerWidth: x, innerHeight: y } = window;
-    const color       = 0xA3CB38;
-    const borderColor = 0x009432;
-    const w           = 70;
-    const h           = 30;
+  private destroyExistingCells() {
+    const cells = this.state.cells;
+    const visualCells: VisualCellMap = this.ui.cells;
 
-    const textX       = -w;
-    const textY       = 20 - h;
-    const style       = { fontFamily: 'Arial', fontSize: 20, color: '#009432' };
-
-    const r1 = this.add
-      .rectangle((w / 2) - (w + 10), 0, w, h, color)
-      .setStrokeStyle(4, borderColor);
-
-    const text = this.add
-      .text(textX, textY, 'seeds', style)
-      .setDepth(1);
-
-    this.ui.buttons.seeds = this.add
-      .container((x - 10), y - h, [r1, text])
-      .setSize(w * 2, h * 2)
-      .setInteractive()
-      .setDepth(4);
-
-    const { seeds: buttonSeed } = this.ui.buttons;
-
-    // Events
-    buttonSeed.once('destroy', () => {
-      r1.destroy();
-      text.destroy();
-    });
-
-    buttonSeed
-      .on('pointerdown', () => {
-        this.toggleSeedsPanel();
-      })
-      .on('pointerover', () => {
-        buttonSeed.setScale(1.1, 1.1);
-      })
-      .on('pointerout', () => {
-        buttonSeed.setScale(1, 1);
-      });
-  }
-
-  public createSeedsPanel() {
-    const { innerHeight: h, innerWidth: w } = window;
-
-    const borderColor = 0x1B1464;
-    const color       = 0xb2bec3;
-    const x           = w / 2;
-    const y           = h / 2;
-
-    const textX       = w / 2;
-    const textY       = 10;
-    const style       = { fontFamily: 'Arial', fontSize: 40, color: '#fff' };
-
-    const background = this.add
-      .rectangle(x, y, w, h, color)
-      .setStrokeStyle(5, borderColor);
-
-    const text = this.add.text(textX, textY, 'seeds', style);
-
-    const seedsBoards = this.add.container(0, 90);
-
-    this.ui.seedsPanel = this.add
-      .container(0, 0, [background, text, seedsBoards])
-      .setVisible(false)
-      .setDepth(3);
-
-    return this.ui.seedsPanel;
-  }
-
-  public createUIControls() {
-    this
-      .createPauseButton()
-      .createPlayButton()
-      .createRestartButton()
-      .createEditionModeButton()
-      .createSeedsButton();
-
-    return this;
-  }
-
-  public freeMemory() {
-    const counter = this.ui.counter as Phaser.GameObjects.Text;
-    const pointer = this.ui.pointer as Phaser.GameObjects.Rectangle;
-
-    for (const [, button] of Object.entries(this.ui.buttons)) {
-      button.destroy();
+    for (const [key, cell] of Object.entries(visualCells)) {
+      cell.destroy();
+      delete visualCells[key];
     }
 
-    this.ui.lines.map((line) => { line.destroy(); });
-    this.ui.lines = [];
-
-    counter.destroy();
-    pointer.destroy();
-
-    this.ui.pointer = undefined;
-
-    this.cleanBoard();
-    window.clearInterval(this.timer);
-
-    ipcRenderer.removeAllListeners('tick-reply');
-    ipcRenderer.removeAllListeners('get-initial-state-reply');
-
-    this.input.removeAllListeners('pointermove');
-    this.input.removeAllListeners('pointerup');
+    for (const [key] of Object.entries(cells)) {
+      delete cells[key];
+    }
 
     return this;
   }
 
-  public init() {
+  private init() {
     this.state = {
       cells: {},
       paused: true,
@@ -526,33 +242,32 @@ export default class MainScene extends Phaser.Scene {
   }
 
   /** Draw cells */
-  public initCells(seed: Cell[]) {
-    const { cells }               = this.state;
-    const color                   = parseInt(this.config.colors.cell, 16);
-    const { h, w }                = this.config.cellSize;
-    const visualCells             = this.ui.cells as VisualCellMap;
+  private initCells(seed: Cell[]) {
+    const { cells }   = this.state;
+    const color       = parseInt(this.config.colors.cell, 16);
+    const { h, w }    = this.config.cellSize;
+    const visualCells = this.ui.cells as VisualCellMap;
 
-    seed
-      .map((cell) => {
-        const key = `${cell.x},${cell.y}`;
+    seed.map((cell) => {
+      const key = `${cell.x},${cell.y}`;
 
-        if (cells[key]) { return; }
+      if (cells[key]) { return; }
 
-        const rect = this.add.rectangle(
-          (cell.x + .5) * w,
-          (cell.y + .5) * h,
-          w, h,
-          color,
-        );
+      const rect = this.add.rectangle(
+        (cell.x + .5) * w,
+        (cell.y + .5) * h,
+        w, h,
+        color,
+      );
 
-        visualCells[key] = rect;
-        cells[key] = cell;
-      });
+      visualCells[key] = rect;
+      cells[key] = cell;
+    });
 
     this.state.ready = true;
   }
 
-  public listenEvents() {
+  private listenEvents() {
     ipcRenderer.on('tick-reply', (event: Event, data: State) => {
       this.renderState(data);
     });
@@ -642,17 +357,38 @@ export default class MainScene extends Phaser.Scene {
       }
     });
 
+    this.events.on('loadBoard', this.loadBoard, this);
+
+    this.events.on('control:toggleEditionMode', this.controltoggleEditionMode, this);
+    this.events.on('control:pause', this.controlPause, this);
+    this.events.on('control:play', this.controlPlay, this);
+    this.events.on('control:restart', this.controlRestart, this);
+    this.events.on('control:toggleSeedsPanel', this.controlToggleSeedsPanel, this);
+
     return this;
   }
 
-  public pause() {
+  private loadBoard(state: Cell[]) {
+    this
+      .destroyExistingCells()
+      .initCells(state);
+
+    this.state.ready = true;
+  }
+
+  private notifyControlChanged(newControl: Control) {
+    // this.events.emit(newState);
+    this.events.emit('controlChanged', { newControl });
+  }
+
+  private pause() {
     window.clearInterval(this.timer);
     this.state.paused = true;
 
     return this;
   }
 
-  public renderState(state: State) {
+  private renderState(state: State) {
     const { add, remove }         = state;
     const { h, w }                = this.config.cellSize;
 
@@ -679,14 +415,18 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
-  public restart(config: State) {
-    this
-      .freeMemory()
-      .init()
-      .create(config);
+  private reset() {
+    this.state.step = 0;
+    this.updateCounter('0');
+    this.destroyExistingCells();
+    window.clearInterval(this.timer);
+
+    this.events.emit('control:pause');
+
+    this.createInitialState({ add: {}, remove: {}, step: 0 });
   }
 
-  public start() {
+  private start() {
     this.timer = window.setInterval(() => { this.tick(); }, 1000);
     this.state.paused = false;
 
@@ -696,14 +436,14 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  public stopTick() {
+  private stopTick() {
     const pause = this.ui.buttons.pause as Phaser.GameObjects.Container;
 
     pause.setVisible(false);
     window.clearInterval(this.timer);
   }
 
-  public tick() {
+  private tick() {
     const { cells, step }   = this.state;
     const { columns, rows } = this.config.dimensions;
 
@@ -714,39 +454,24 @@ export default class MainScene extends Phaser.Scene {
     ipcRenderer.send('tick', { cells, columns, rows, step });
   }
 
-  public toggleSeedsPanel() {
-    let seedsPanel = this.ui.seedsPanel as Phaser.GameObjects.Container;
+  private toggleGridDebug() {
+    if (this.isGridDebug) {
+      this.ui.lines.map((line) => { line.setAlpha(0); });
+      this.isGridDebug = false;
 
-    if (!seedsPanel) {
-      seedsPanel = this.createSeedsPanel();
+    } else {
+      this.ui.lines.map((line) => { line.setAlpha(1); });
+      this.isGridDebug = true;
     }
-
-    if (seedsPanel.visible) {
-      seedsPanel.setVisible(false);
-      this.state.ready = true;
-
-      const seedsBoards = seedsPanel.last as Phaser.GameObjects.Container;
-      seedsBoards.removeAll(true);
-
-      return;
-    }
-
-    seedsPanel.setVisible(true);
-    this.state.ready = false;
-
-    ipcRenderer.once('get-all-states-reply', (event: Event, seeds: NamedState[]) => {
-      seeds
-        .filter((seed) => seed.state.length > 0)
-        .map((seed, i) => {
-          const { name, state } = seed;
-          this.createBoard({ i, name, seedsPanel, state });
-        });
-    });
-
-    ipcRenderer.send('get-all-states');
   }
 
-  public updateCounter(text: string) {
+  private toggleSeedsPanel() {
+    this.seedsPan.isVisible() ?
+      this.seedsPan.hide() :
+      this.seedsPan.show();
+  }
+
+  private updateCounter(text: string) {
     const counter = this.ui.counter  as Phaser.GameObjects.Text;
     // Used to update interactive zone
     if (counter.text.length !== `${text}`.length) {
