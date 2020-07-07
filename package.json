@@ -22,7 +22,7 @@
     "ava-ts": "0.25.2",
     "babel-eslint": "10.0.2",
     "download-cli": "1.1.1",
-    "electron": "5.0.6",
+    "electron": "7.2.4",
     "electron-builder": "21.0.15",
     "electron-webpack": "2.7.4",
     "electron-webpack-ts": "3.2.0",
