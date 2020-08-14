@@ -5,7 +5,7 @@ import * as fs                                  from 'fs';
 import * as path                                from 'path';
 import * as storage                             from 'ya-storage';
 
-import { app, BrowserWindow, Event, ipcMain }   from 'electron';
+import { app, BrowserWindow, ipcMain }   from 'electron';
 import { format as formatUrl }                  from 'url';
 import { Promise }                              from 'bluebird-lst';
 
@@ -57,7 +57,7 @@ function createMainWindow() {
   return window;
 }
 
-ipcMain.on('tick', (event: Event, config: GridConfig) => {
+ipcMain.on('tick', (event, config: GridConfig) => {
   event.sender.send('tick-reply', {
     add     : born(config),
     remove  : kill(config),
@@ -65,7 +65,7 @@ ipcMain.on('tick', (event: Event, config: GridConfig) => {
   });
 });
 
-ipcMain.on('get-initial-state', (event: Event) => {
+ipcMain.on('get-initial-state', (event) => {
   const pathName = path.join(__dirname, '/seeds/');
 
   if (!storage.isPathExists(pathName)) {
@@ -89,7 +89,7 @@ ipcMain.on('get-initial-state', (event: Event) => {
   });
 });
 
-ipcMain.on('get-all-states', (event: Event) => {
+ipcMain.on('get-all-states', (event) => {
   const pathName = path.join(__dirname, '/seeds/');
 
   if (!storage.isPathExists(pathName)) {

@@ -1,20 +1,20 @@
 {
     "cellSize": {
-        "h": 0,
-        "w": 0
+        "h": 10,
+        "w": 10
     },
     "colors": {
-        "cellBorder": "0x78e08f",
-        "cell": "0x48dbfb",
+        "cellBorder": "0xAFBBE3",
+        "cell": "0xAC94C9",
         "editionMode": {
             "add": "0x48dbfb",
             "remove": "0xED4C67"
         },
-        "grid": "0xecf0f1"
+        "grid": "0xAFBBE3"
     },
     "dimensions": {
-        "columns": 80,
-        "rows": 40
+        "columns": 20,
+        "rows": 20
     },
     "iconsBar": {
         "width": 100

@@ -101,6 +101,7 @@ export default class MainScene extends Phaser.Scene {
     this.toggleSeedsPanel();
   }
 
+  // @ts-expect-error
   private create(config: State) {
     const { columns, rows } = this.config.dimensions;
 
@@ -127,31 +128,55 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
-  private createGrid({ columns = 80, rows = 40, debug = false }) {
+  private createGrid({ columns = 40, rows = 20, debug = false }) {
     const color = parseInt(this.config.colors.grid, 16);
-    const iconsBarOffset = this.config.iconsBar.width;
+    // const iconsBarOffset = this.config.iconsBar.width;
+    // const width = window.innerWidth - iconsBarOffset;
 
-    const width = window.innerWidth - iconsBarOffset;
+    // const rowSize         = window.innerHeight / rows;
+    // const columnSize      = width / columns;
+    const rowSize = 20;
+    const columnSize = 20;
 
-    const rowSize         = window.innerHeight / rows;
-    const columnSize      = width / columns;
-
-    const columnHeight    = window.innerHeight * 2;
-    const rowWidth        = width * 2;
+    // const columnHeight    = window.innerHeight * 2;
+    // const rowWidth        = width * 2;
+    const columnEndY    = 20 * rows;
+    const rowEndX        = 20 * columns;
 
     this.config.cellSize  = { h: rowSize, w: columnSize };
 
+    const xInit = 100;
+    const yInit = 300;
+
     if (debug) {
-      for (let index = 0; index < columns; index++) {
-        const columnOffset = columnSize * index;
-        const line = this.add.line(0, 0, columnOffset, 0, columnOffset, columnHeight, color);
+      for (let index = 0; index <= columns; index++) {
+        const xPos = columnSize * index;
+
+        const line = this.add.line(
+          xInit,
+          yInit,
+          xPos,
+          0,
+          xPos,
+          columnEndY,
+          color,
+        );
 
         this.ui.lines.push(line);
       }
 
-      for (let index = 0; index < rows; index++) {
-        const rowOffset = rowSize * index;
-        const line = this.add.line(0, 0, 0, rowOffset, rowWidth, rowOffset, color);
+      for (let index = 0; index <= rows; index++) {
+        const yPos = rowSize * index;
+
+        const line = this.add.line(
+          yInit,
+          xInit,
+          0,
+          yPos,
+          rowEndX,
+          yPos,
+          color,
+        );
 
         this.ui.lines.push(line);
       }
@@ -171,7 +196,7 @@ export default class MainScene extends Phaser.Scene {
 
     ipcRenderer.send('get-initial-state', config);
 
-    ipcRenderer.on('get-initial-state-reply', (event: Event, data: Cell[]) => {
+    ipcRenderer.on('get-initial-state-reply', (event, data: Cell[]) => {
       this.initCells(data);
     });
 
@@ -183,7 +208,7 @@ export default class MainScene extends Phaser.Scene {
     const color = parseInt(this.config.colors.cell, 16);
 
     this.ui.pointer = this.add
-      .rectangle(100, 20, w, h, color)
+      .rectangle(100, 20, w / 2, h / 2, color)
       .setVisible(false)
       .setDepth(1);
 
@@ -212,6 +237,7 @@ export default class MainScene extends Phaser.Scene {
     return this;
   }
 
+  // @ts-expect-error
   private init() {
     this.state = {
       cells: {},
@@ -256,7 +282,8 @@ export default class MainScene extends Phaser.Scene {
       const rect = this.add.rectangle(
         (cell.x + .5) * w,
         (cell.y + .5) * h,
-        w, h,
+        w / 1.5,
+        h / 1.5,
         color,
       );
 
@@ -344,7 +371,7 @@ export default class MainScene extends Phaser.Scene {
       if (editionMode === 'add') {
         if (cells[key]) { return; }
 
-        visualCells[key] = this.add.rectangle(x, y, w, h, color);
+        visualCells[key] = this.add.rectangle(x, y, w / 1.5, h / 1.5, color);
         cells[key] = { x: cellX, y: cellY };
 
       } else {
@@ -389,20 +416,27 @@ export default class MainScene extends Phaser.Scene {
   }
 
   private renderState(state: State) {
-    const { add, remove }         = state;
-    const { h, w }                = this.config.cellSize;
+    const { add, remove } = state;
+    const { h, w }        = this.config.cellSize;
 
-    const cells                   = this.state.cells as CellMap;
-    const visualCells             = this.ui.cells as VisualCellMap;
-    const color                   = parseInt(this.config.colors.cell, 16);
+    const cells           = this.state.cells as CellMap;
+    const visualCells     = this.ui.cells as VisualCellMap;
+    const color           = parseInt(this.config.colors.cell, 16);
 
     this.state.step = state.step;
     this.updateCounter(state.step.toString());
 
     for (const [key, cell] of Object.entries(add)) {
-      const rect = this.add.rectangle((cell.x + .5) * w, (cell.y + .5) * h, w, h, color);
-      visualCells[key] = rect;
-      cells[key] = cell;
+      const rect        = this.add.rectangle(
+        ((cell.x + .5) * w),
+        ((cell.y + .5) * h),
+        w / 1.5,
+        h / 1.5,
+        color
+      );
+
+      visualCells[key]  = rect;
+      cells[key]        = cell;
     }
 
     for (const [key] of Object.entries(remove)) {
@@ -454,6 +488,7 @@ export default class MainScene extends Phaser.Scene {
     ipcRenderer.send('tick', { cells, columns, rows, step });
   }
 
+  // @ts-expect-error
   private toggleGridDebug() {
     if (this.isGridDebug) {
       this.ui.lines.map((line) => { line.setAlpha(0); });

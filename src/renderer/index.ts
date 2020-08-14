@@ -5,6 +5,7 @@ import MainScene from './scenes/mainScene';
 
 const config = {
   autoResize: true,
+  backgroundColor: '0x191A1A',
   type: Phaser.WEBGL,
   width: window.innerWidth,
   height: window.innerHeight,
@@ -12,8 +13,3 @@ const config = {
 };
 
 new ConwayGame(new Phaser.Game(config)); // tslint:disable-line no-unused-expression
-
-window.addEventListener('resize', () => {
-  if (ConwayGame.instance.scene.scenes.length === 0) { return; }
-  ConwayGame.instance.scene.scenes[0].events.emit('resize');
-});
